@@ -36,7 +36,6 @@
 #include "kspace.h"
 #include "math_const.h"
 #include "math_extra.h"
-#include <random>
 
 using namespace LAMMPS_NS;
 using namespace FixConst;
