@@ -47,14 +47,13 @@ SelectBond::SelectBond(LAMMPS *lmp, char* filename) : Pointers(lmp){
 	visited_branch = NULL;
 	visitedgroup = NULL;
 	cacheMatrix = NULL;
+	bondatompair = NULL;
 	fp = NULL;
 	me = comm->me;
 	srand(time(NULL));
 
 	createArrays();
-
 	getBondData(filename);
-
 	array2List();
 	//	for(int atom=1;atom<=nlocal;atom++){
 	//		cout<<atom;
@@ -173,9 +172,8 @@ int SelectBond::size(int** arr) {
 
 void SelectBond::getBondData(char* filename) {
 	tagint *tag = atom->tag;
-	bondNum = new int[nlocal];
-	for(int c=0;c<nlocal;c++)
-		bondNum[c]=0;
+	bondNum = new int[nlocal+1];
+	memset(bondNum,0,(nlocal+1)*sizeof(int)); // 1 based
 
 	for (int a1 = 0; a1 < nlocal; a1++) {
 		for (int a2 = 0; a2 < atom->num_bond[a1]; a2++) {
