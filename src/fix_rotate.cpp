@@ -183,8 +183,7 @@ displace(NULL), velocity(NULL),random(NULL),s(NULL),xprevious(NULL)
 	int *body = atom->body;
 	int *mask = atom->mask;
 	int nlocal = atom->nlocal;
-	//xprevious = new int[nlocal][3];
-	memory->grow(xprevious,atom->nmax,3,"rotate:xprevious");
+
 	for(int i=0;i<nlocal;i++)
 	{
 		xprevious[i][0] = x[i][0];
@@ -707,10 +706,11 @@ void FixRotate::restart(char *buf)
 
 void FixRotate::grow_arrays(int nmax)
 {
-	memory->grow(xoriginal,nmax,3,"move:xoriginal");
-	if (theta_flag) memory->grow(toriginal,nmax,"move:toriginal");
-	if (quat_flag) memory->grow(qoriginal,nmax,4,"move:qoriginal");
-	array_atom = xoriginal;
+	memory->grow(xprevious,atom->nmax,3,"rotate:xprevious");
+	memory->grow(xoriginal,nmax,3,"rotate:xoriginal");
+	if (theta_flag) memory->grow(toriginal,nmax,"rotate:toriginal");
+	if (quat_flag) memory->grow(qoriginal,nmax,4,"rotate:qoriginal");
+	array_atom = xprevious;
 }
 
 /* ----------------------------------------------------------------------
@@ -719,9 +719,9 @@ void FixRotate::grow_arrays(int nmax)
 
 void FixRotate::copy_arrays(int i, int j, int delflag)
 {
-	xoriginal[j][0] = xoriginal[i][0];
-	xoriginal[j][1] = xoriginal[i][1];
-	xoriginal[j][2] = xoriginal[i][2];
+	xprevious[j][0] = xprevious[i][0];
+	xprevious[j][1] = xprevious[i][1];
+	xprevious[j][2] = xprevious[i][2];
 	if (theta_flag) toriginal[j] = toriginal[i];
 	if (quat_flag) {
 		qoriginal[j][0] = qoriginal[i][0];
@@ -844,9 +844,9 @@ void FixRotate::set_arrays(int i)
 int FixRotate::pack_exchange(int i, double *buf)
 {
 	int n = 0;
-	buf[n++] = xoriginal[i][0];
-	buf[n++] = xoriginal[i][1];
-	buf[n++] = xoriginal[i][2];
+	buf[n++] = xprevious[i][0];
+	buf[n++] = xprevious[i][1];
+	buf[n++] = xprevious[i][2];
 	if (theta_flag) buf[n++] = toriginal[i];
 	if (quat_flag) {
 		buf[n++] = qoriginal[i][0];
@@ -864,9 +864,9 @@ int FixRotate::pack_exchange(int i, double *buf)
 int FixRotate::unpack_exchange(int nlocal, double *buf)
 {
 	int n = 0;
-	xoriginal[nlocal][0] = buf[n++];
-	xoriginal[nlocal][1] = buf[n++];
-	xoriginal[nlocal][2] = buf[n++];
+	xprevious[nlocal][0] = buf[n++];
+	xprevious[nlocal][1] = buf[n++];
+	xprevious[nlocal][2] = buf[n++];
 	if (theta_flag) toriginal[nlocal] = buf[n++];
 	if (quat_flag) {
 		qoriginal[nlocal][0] = buf[n++];
@@ -884,9 +884,9 @@ int FixRotate::unpack_exchange(int nlocal, double *buf)
 int FixRotate::pack_restart(int i, double *buf)
 {
 	int n = 1;
-	buf[n++] = xoriginal[i][0];
-	buf[n++] = xoriginal[i][1];
-	buf[n++] = xoriginal[i][2];
+	buf[n++] = xprevious[i][0];
+	buf[n++] = xprevious[i][1];
+	buf[n++] = xprevious[i][2];
 	if (theta_flag) buf[n++] = toriginal[i];
 	if (quat_flag) {
 		buf[n++] = qoriginal[i][0];
@@ -912,9 +912,9 @@ void FixRotate::unpack_restart(int nlocal, int nth)
 	for (int i = 0; i < nth; i++) m += static_cast<int> (extra[nlocal][m]);
 	m++;
 
-	xoriginal[nlocal][0] = extra[nlocal][m++];
-	xoriginal[nlocal][1] = extra[nlocal][m++];
-	xoriginal[nlocal][2] = extra[nlocal][m++];
+	xprevious[nlocal][0] = extra[nlocal][m++];
+	xprevious[nlocal][1] = extra[nlocal][m++];
+	xprevious[nlocal][2] = extra[nlocal][m++];
 	if (theta_flag) toriginal[nlocal] = extra[nlocal][m++];
 	if (quat_flag) {
 		qoriginal[nlocal][0] = extra[nlocal][m++];
