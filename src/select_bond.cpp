@@ -15,9 +15,11 @@
 #include "group.h"
 #include "memory.h"
 #include "force.h"
+#include "comm.h"
+#include "error.h"
 #define MIN(A,B) ((A) < (B) ? (A) : (B))
 #define MAX(A,B) ((A) > (B) ? (A) : (B))
-
+#define MAXLINE 256
 int INF = std::numeric_limits<int>::max();
 
 using namespace LAMMPS_NS;
@@ -30,7 +32,7 @@ using namespace std;
  */
 
 
-SelectBond::SelectBond(LAMMPS *lmp) : Pointers(lmp){
+SelectBond::SelectBond(LAMMPS *lmp, char* filename) : Pointers(lmp){
 	sizeGroup = 0;
 	nlocal = atom->natoms;
 	atom1 = 0;
@@ -45,10 +47,14 @@ SelectBond::SelectBond(LAMMPS *lmp) : Pointers(lmp){
 	visited_branch = NULL;
 	visitedgroup = NULL;
 	cacheMatrix = NULL;
+	fp = NULL;
+	me = comm->me;
 	srand(time(NULL));
 
 	createArrays();
-	getBondData();
+
+	getBondData(filename);
+
 	array2List();
 	//	for(int atom=1;atom<=nlocal;atom++){
 	//		cout<<atom;
@@ -165,7 +171,7 @@ int SelectBond::size(int** arr) {
 	return sizeof(arr) / sizeof(arr[0]);
 }
 
-void SelectBond::getBondData() {
+void SelectBond::getBondData(char* filename) {
 	tagint *tag = atom->tag;
 	bondNum = new int[nlocal];
 	for(int c=0;c<nlocal;c++)
@@ -178,24 +184,19 @@ void SelectBond::getBondData() {
 		}
 	}
 
-	ifstream in("/Users/apple/Downloads/lammps-master/output_ala.txt");
+	char line[MAXLINE],keyword[MAXLINE];
+	int index = 0;
+	open(filename);
+	readline(line);
+	parse_keyword(0,line,keyword);
+	totalpairs = atoi (keyword);
 
-	if(!in) {
-		cout << "Cannot open input file.\n";
-		return;
-	}
-	char str[255];
-	int index=0 , p=2;
-	in.getline(str, 255);
-	sscanf (str,"%d",&totalpairs);
-	cout<<"total pairs"<<totalpairs;
 	memory->create(bondatompair,totalpairs,2,"selectbond:pairs");
-	while(in) {
-			in.getline(str, 255);  // delim defaults to '\n'
-			if(in) {
-				sscanf (str,"%d\t%d",&bondatompair[index][0],&bondatompair[index][1]);
-			}
-			index++;
+
+	for (int i = 0; i < totalpairs; i++){
+		 readline(line);
+		 sscanf (line,"%d\t%d",&bondatompair[index][0],&bondatompair[index][1]);
+		 index++;
 	}
 
 	for(int i=0;i<totalpairs;i++)
@@ -207,46 +208,6 @@ void SelectBond::selectBondPairAtoms() {
 	int randindex = rand() % totalpairs;
 	atom1 = bondatompair[randindex][0];
 	atom2 = bondatompair[randindex][1];
-
-//	int countindex=0;
-//	int row;
-//	int backbone [49] = { 1224 , 1226 ,1232, 1233, 1234 ,1236 ,1252 ,1253 ,1254, 1256, 1269 ,1270 ,1271 ,1273, 1280 ,
-//			1281 ,1282 ,1284, 1297 ,1298 ,1299 ,1301 ,1314 ,1315 ,1316 ,1318 ,1325, 1326 ,1327 ,1329 ,
-//			1336 ,1337, 1338 ,1340 ,1347 ,1348, 1349 ,1351, 1359 ,1360, 1361 ,1363 ,1371, 1372 ,1373,
-//			1375, 1385 ,1386 ,1387 };
-//
-//	for(int i=0;i<20;i++)
-//		int xw = (rand() % 49);
-//	row = (rand() % 49);
-//	atom1 = backbone[row]+1;
-//	int col = branchNumber[atom1]-1;
-//	if(col!=0)
-//		col = (rand() % col) ;
-//	for(std::list<int>::const_iterator iterator = adj[atom1].begin(); iterator != adj[atom1].end(); ++iterator){
-//		if(countindex==col)
-//		{
-//			atom2 = *iterator;
-//			break;
-//		}
-//		countindex++;
-//	}
-	//bondpair[0] = atom1-1;
-	//bondpair[1] = atom2-1;
-	//cout<<"from selectbond: "<<atom->x[atom1-1][0]<<" "<<atom->x[atom1-1][1]<<" "<<atom->x[atom1-1][2]<<" "<<atom->x[atom2-1][0]<<" "<<atom->x[atom2-1][1]<<" "<<atom->x[atom2-1][2]<<endl;
-	//cout<<"%%%%%%%%%%%%%%%%%%%%%%%atom1 "<<atom1<<"%atom2 "<<atom2<<" row: "<<row<<"col: "<<col<<"\n";
-
-	//int backbone[36][2] = {
-	//			{1224,1226},{1226,1232},{1232,1234},{1234,1236},{1236,1252},{1252,1254},{1254,1256},{1256,1269},{1269,1271},{1271,1273},{1273,1280},
-	//			{1280,1282},{1282,1284},{1284,1297},{1297,1299},{1299,1301},{1301,1314},{1314,1316},{1316,1318},{1318,1325},{1325,1327},{1327,1329},{1329,1336},
-	//			{1336,1338},{1338,1340},{1340,1347},{1347,1349},{1349,1451},{1351,1359},{1359,1361},{1361,1363},{1363,1371},{1371,1373},{1373,1375},{1375,1385},{1385,1387}};
-	//	int xw;
-	//	for(int i=0;i<20;i++)
-	//		xw = (rand() % 49);
-	//	int randomno = rand() % 36;
-	//	atom1 = backbone[randomno][0];
-	//	atom2 = backbone[randomno][1];
-
-
 }
 
 void SelectBond::selectDirection() {
@@ -290,9 +251,6 @@ void SelectBond::makeGroup() {
 	visited[atom2] = 1;
 	rotateGroupFlag[atom1]=1;
 	addToGroup(atom1);
-	//	for(int g=1;g<=nlocal;g++)
-	//		if(rotateGroupFlag[g])
-	//			cout<<g<<' ';
 
 	int s=0;
 	sizeGroup = 0;
@@ -381,12 +339,88 @@ void SelectBond::createArrays() {
 	adj = new list<int>[nlocal+1]; //adjecency list of the bond atoms
 }
 
-int SelectBond :: selectBondsAndDirectionsPlusCreateGroups()
+
+int SelectBond::selectBondsAndDirectionsPlusCreateGroups()
 {
 	selectBondPairAtoms();
 	selectDirection();
 	makeGroup();
 	return 0 ;
+}
+
+/* ----------------------------------------------------------------------
+   open molecule file
+------------------------------------------------------------------------- */
+
+void SelectBond::open(char* file){
+	fp = fopen(file,"r");
+	if (fp == NULL) {
+		char str[128];
+		sprintf(str,"Cannot open bonds file %s",file);
+		error->one(FLERR,str);
+	}
+}
+
+/* ----------------------------------------------------------------------
+   read and bcast a line
+------------------------------------------------------------------------- */
+
+void SelectBond::readline(char *line){
+	int n;
+	if (me == 0) {
+		if (fgets(line,MAXLINE,fp) == NULL) n = 0;
+		else n = strlen(line) + 1;
+	}
+	MPI_Bcast(&n,1,MPI_INT,0,world);
+	if (n == 0) error->all(FLERR,"Unexpected end of bonds file");
+	MPI_Bcast(line,n,MPI_CHAR,0,world);
+}
+
+/* ----------------------------------------------------------------------
+   extract keyword from line
+   flag = 0, read and bcast line
+   flag = 1, line has already been read
+------------------------------------------------------------------------- */
+
+void SelectBond::parse_keyword(int flag, char *line, char *keyword){
+	if (flag) {
+
+		// read upto non-blank line plus 1 following line
+		// eof is set to 1 if any read hits end-of-file
+
+		int eof = 0;
+		if (me == 0) {
+			if (fgets(line,MAXLINE,fp) == NULL) eof = 1;
+			while (eof == 0 && strspn(line," \t\n\r") == strlen(line)) {
+				if (fgets(line,MAXLINE,fp) == NULL) eof = 1;
+			}
+			if (fgets(keyword,MAXLINE,fp) == NULL) eof = 1;
+		}
+
+		// if eof, set keyword empty and return
+
+		MPI_Bcast(&eof,1,MPI_INT,0,world);
+		if (eof) {
+			keyword[0] = '\0';
+			return;
+		}
+
+		// bcast keyword line to all procs
+
+		int n;
+		if (me == 0) n = strlen(line) + 1;
+		MPI_Bcast(&n,1,MPI_INT,0,world);
+		MPI_Bcast(line,n,MPI_CHAR,0,world);
+	}
+
+	// copy non-whitespace portion of line into keyword
+
+	int start = strspn(line," \t\n\r");
+	int stop = strlen(line) - 1;
+	while (line[stop] == ' ' || line[stop] == '\t'
+			|| line[stop] == '\n' || line[stop] == '\r') stop--;
+	line[stop+1] = '\0';
+	strcpy(keyword,&line[start]);
 }
 
 SelectBond::~SelectBond() {
@@ -400,3 +434,4 @@ SelectBond::~SelectBond() {
 	memory->destroy(cacheMatrix);
 	memory->destroy(visitedgroup);
 }
+

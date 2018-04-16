@@ -55,7 +55,7 @@ vyvarstr(NULL), vzvarstr(NULL),
 xoriginal(NULL), toriginal(NULL), qoriginal(NULL),
 displace(NULL), velocity(NULL),random(NULL),s(NULL),xprevious(NULL)
 {
-	if (narg < 4) error->all(FLERR,"Illegal fix move command");
+	if (narg < 4) error->all(FLERR,"Illegal fix rotate command");
 	restart_global = 1;
 	restart_peratom = 1;
 	peratom_flag = 1;
@@ -67,34 +67,24 @@ displace(NULL), velocity(NULL),random(NULL),s(NULL),xprevious(NULL)
 	velocityflag = 0;
 	maxatom = 0;
 	int iarg;
+
 	random = new RanMars(lmp,2347924 + comm->me);
 	if (strcmp(arg[3],"rotate") == 0){
-		if (narg < 11) error->all(FLERR,"Illegal fix rotate command");
-		iarg = 11;
+		if (narg < 7) error->all(FLERR,"Illegal fix rotate command");
+		iarg = 7;
 		mstyle = ROTATE;
-		s = new SelectBond(lmp);
-		//		s->mainfunction();
-		//		atom1 = s->bondpair[0];
-		//		atom2 = s->bondpair[1];
-		//		point[0] = (atom->x[atom1][0] + atom->x[atom2][0])/2;
-		//		point[1] = (atom->x[atom1][1] + atom->x[atom2][1])/2;
-		//		point[2] = (atom->x[atom1][2] + atom->x[atom2][2])/2;
-		//		axis[0] = (atom->x[atom1][0] - atom->x[atom2][0]);
-		//		axis[1] = (atom->x[atom1][1] - atom->x[atom2][1]);
-		//		axis[2] = (atom->x[atom1][2] - atom->x[atom2][2]);
-		//		period = 3600; //TODO use it
-		//		if (period <= 0.0) error->all(FLERR,"Illegal fix rotate command");
+		s = new SelectBond(lmp,arg[4]);
 	}
 	int scaleflag = 1;
 
 	while (iarg < narg) {
 		if (strcmp(arg[iarg],"units") == 0) {
-			if (iarg+2 > narg) error->all(FLERR,"Illegal fix move command");
+			if (iarg+2 > narg) error->all(FLERR,"Illegal fix rotate command");
 			if (strcmp(arg[iarg+1],"box") == 0) scaleflag = 0;
 			else if (strcmp(arg[iarg+1],"lattice") == 0) scaleflag = 1;
-			else error->all(FLERR,"Illegal fix move command");
+			else error->all(FLERR,"Illegal fix rotate command");
 			iarg += 2;
-		} else error->all(FLERR,"Illegal fix move command");
+		} else error->all(FLERR,"Illegal fix rotate command");
 	}
 
 	// error checks and warnings
@@ -184,12 +174,10 @@ displace(NULL), velocity(NULL),random(NULL),s(NULL),xprevious(NULL)
 	int *mask = atom->mask;
 	int nlocal = atom->nlocal;
 
-	for(int i=0;i<nlocal;i++)
-	{
+	for(int i=0;i<nlocal;i++){
 		xprevious[i][0] = x[i][0];
 		xprevious[i][1] = x[i][1];
 		xprevious[i][2] = x[i][2];
-
 	}
 
 	for (int i = 0; i < nlocal; i++) {
@@ -243,8 +231,6 @@ displace(NULL), velocity(NULL),random(NULL),s(NULL),xprevious(NULL)
 	compute = lmp->modify->compute[icompute];
 	elast = compute->scalar;
 	cout<<"elast "<<elast<<endl;
-
-
 }
 
 /* ---------------------------------------------------------------------- */

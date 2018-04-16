@@ -44,11 +44,14 @@ public:
 	int **bondatompair;
 	int atom1, atom2;
 	int sizeGroup;
+	int me;
+
+	FILE *fp;
 
 	list<int> *adj;     		// Pointer to an array containing
 	list<int> *groupCache;  	// Groupcache
 
-	SelectBond(LAMMPS *);
+	SelectBond(LAMMPS *,char*);
 	void makeBranchSizeMatrix();
 	void addEdgeUndirected(int,int);
 	void addEdgeDirected(int,int);
@@ -61,9 +64,15 @@ public:
 	void createArrays();
 	int branchSize(int);
 	int size(int** );
-	void getBondData();
+	void getBondData(char*);
 	int selectBondsAndDirectionsPlusCreateGroups();
 	void addToGroup(int);
+	void open(char*);
+	void readline(char *);
+	void parse_keyword(int, char *, char *);
+	void skip_lines(int, char *);
+	int parse(char *, char **, int);
+
 	~SelectBond();
 };
 
