@@ -33,7 +33,12 @@ public:
 	int *bondpair;
 	int branchsize;
 	int **bondAtom;	//(1 based)
-	int *bondNum;	//(0 based)
+	int *bondNum;	//(1 based)
+	int **angleAtom1;
+	int **angleAtom2;
+	int **angleAtom3;
+	int *AngledNum;	//(1 based)
+	int **angleAtomPair;
 	int **branchSizeMatrix;	//(1 based)
 	int *branchNumber;
 	int *cacheMatrix;		// Contains atoms count

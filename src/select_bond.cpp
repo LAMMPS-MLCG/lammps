@@ -27,7 +27,8 @@ using namespace std;
 
 /*TODO
  *
- * 6. implement group caching
+ * 1. implement group caching
+ * 2. shift the i/o funtions to iohelper class
  *
  */
 
@@ -40,6 +41,7 @@ SelectBond::SelectBond(LAMMPS *lmp, char* filename) : Pointers(lmp){
 	bondpair = NULL;
 	bondAtom = NULL;
 	bondNum = NULL;
+	angleAtomPair = NULL;
 	branchNumber = NULL;
 	rotateGroupFlag = NULL;
 	branchSizeMatrix = NULL;
@@ -199,6 +201,27 @@ void SelectBond::getBondData(char* filename) {
 
 	for(int i=0;i<totalpairs;i++)
 		cout<<bondatompair[i][0]<<'\t'<<bondatompair[i][1]<<endl;
+
+//	int groupbit = 0;
+//	int *mask = atom->mask;
+//	memset(AngledNum,0,(nlocal+1)*sizeof(int)); // 1 based
+//	int igroup = group->find("SideChain");
+//	if(igroup!=-1)
+//		groupbit = group->bitmask[igroup];
+//	int at1, at2, at3;
+//	for (int a1 = 0; a1 < nlocal; a1++) {
+//			for (int a2 = 0; a2 < atom->num_angle[a1]; a2++) {
+//				if(atom->angle_type[a1][a2]){
+//				at1 = atom->map(atom->angle_atom1[a1][a2]);
+//				at2 = atom->map(atom->angle_atom2[a1][a2]);
+//				at3 = atom->map(atom->angle_atom3[a1][a2]);
+//				if((mask[at1] & groupbit) || (mask[at2] & groupbit) || (mask[at3] & groupbit))
+//					//save in sidechain
+//				cout<<angleAtom1[tag[a1]][a2]<<" "<<angleAtom2[tag[a1]][a2]<<" "<<angleAtom3[tag[a1]][a2]<<endl;
+//				AngledNum[tag[a1]]++;}
+//			}
+//		}
+	cout<<"%%%%%%%%%%%%%%%%%%"<<endl;
 }
 
 void SelectBond::selectBondPairAtoms() {
@@ -335,6 +358,9 @@ void SelectBond::createArrays() {
 	memory->create(visitedgroup,nlocal+1,"selectbond:visitedgroup");
 
 	adj = new list<int>[nlocal+1]; //adjecency list of the bond atoms
+	memory->create(angleAtom1,nlocal+1,atom->angle_per_atom,"selectbond:angleAtom1");
+	memory->create(angleAtom2,nlocal+1,atom->angle_per_atom,"selectbond:angleAtom2");
+	memory->create(angleAtom3,nlocal+1,atom->angle_per_atom,"selectbond:angleAtom3");
 }
 
 

@@ -10,6 +10,7 @@ FixStyle(rotate,FixRotate)
 #include <stdio.h>
 #include "fix.h"
 #include "select_bond.h"
+#include "mkdssp.h"
 #define MAX_ATTEMPTS 1000
 
 namespace LAMMPS_NS {
@@ -81,6 +82,7 @@ class FixRotate : public Fix {
   class SelectBond *s ;
   class Compute *compute;
   class Compute *c_pe;
+  class mkdssp *dssp;
 };
 
 }

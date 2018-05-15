@@ -36,7 +36,7 @@
 #include "kspace.h"
 #include "math_const.h"
 #include "math_extra.h"
-
+#include "mkdssp.h"
 using namespace LAMMPS_NS;
 using namespace FixConst;
 using namespace MathConst;
@@ -230,7 +230,17 @@ displace(NULL), velocity(NULL),random(NULL),s(NULL),xprevious(NULL)
 	int icompute = lmp->modify->find_compute("thermo_pe");
 	compute = lmp->modify->compute[icompute];
 	elast = compute->scalar;
-	cout<<"elast "<<elast<<endl;
+	//elast = energy_full();
+	//cout<<"elast "<<elast<<endl;
+
+	char* inputcmd[5];
+	inputcmd[0] = "./mkdssp";
+	inputcmd[1] = "-i";
+	inputcmd[2] = "3md3_high.pdb";
+	inputcmd[3] = "-o";
+	inputcmd[4] = "3md3.dssp";
+	dssp = new mkdssp(lmp);
+	dssp->init(5,inputcmd);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -249,7 +259,7 @@ FixRotate::~FixRotate()
 	memory->destroy(qoriginal);
 	memory->destroy(displace);
 	memory->destroy(velocity);
-	//memory->destroy(xprevious);
+	memory->destroy(xprevious);
 
 	delete [] xvarstr;
 	delete [] yvarstr;
@@ -290,18 +300,22 @@ void FixRotate::init()
 	else displace = NULL;
 	if (velocityflag) memory->create(velocity,maxatom,3,"move:velocity");
 	else velocity = NULL;
-
+	//cout<<"************* init ************"<<endl;
 	//	if (strstr(update->integrate_style,"respa"))
 	//		nlevels_respa = ((Respa *) update->integrate)->nlevels;
+	 for(int i=0;i<atom->nlocal;i++){
+                xprevious[i][0] = atom->x[i][0];
+                xprevious[i][1] = atom->x[i][1];
+               xprevious[i][2] = atom->x[i][2];
+	//cout<<i<<' '<<xprevious[i][0]<<" "<<xprevious[i][1]<<" "<<xprevious[i][2]<<endl;
+                //        
+          }
 }
 
 /* ----------------------------------------------------------------------
    set x,v of particles
 ------------------------------------------------------------------------- */
 int FixRotate::setParameters() {
-	int *mask = atom->mask;
-	int nlocal = atom->nlocal;
-	imageint *image = atom->image;
 	s->selectBondPairAtoms();
 	s->selectDirection();
 	s->makeGroup();
@@ -344,7 +358,7 @@ void FixRotate::initial_integrate(int vflag){
 	while(attempts--){
 
 		setParameters();
-		cout<<atom1<<'\t'<<atom2<<endl;
+		//cout<<atom1<<'\t'<<atom2<<endl;
 		if(atom1 == atom2)
 			error->all(FLERR, "Atom1 and Atom2 can not be the same");
 		x = atom->x;
@@ -361,6 +375,8 @@ void FixRotate::initial_integrate(int vflag){
 		axis[0] = (xatom1[0] - xatom2[0]);
 		axis[1] = (xatom1[1] - xatom2[1]);
 		axis[2] = (xatom1[2] - xatom2[2]);
+		//cout<<xatom1[0]<<" "<<xatom1[1]<<" "<<xatom1[2]<<endl;
+		//cout<<xatom2[0]<<" "<<xatom2[1]<<" "<<xatom2[2]<<endl;
 		double len = sqrt(axis[0]*axis[0] + axis[1]*axis[1] + axis[2]*axis[2]);
 		if (len == 0.0)
 			error->all(FLERR,"Zero length rotation vector with fix move");
@@ -371,13 +387,9 @@ void FixRotate::initial_integrate(int vflag){
 		double degree = fmod(((random->uniform() * 180.0) - 90 + 360),360); //a value between [-90, 90] (normalized [0,360])
 		//double degree = random->uniform() * 20;
 		period = 360.0 / degree;
-		cout<<"degree   "<<degree<<" period   "<<period<<endl;
+		//cout<<"degree   "<<degree<<" period   "<<period<<endl;
 		omega_rotate = MY_2PI / period;
-		//cout<<xprevious[atom->tag[0]][0]<<'\t'<<xprevious[atom->tag[0]][1]<<'\t'<<xprevious[atom->tag[0]][2]<<endl;
-		//cout<<xprevious[atom->tag[2587]][0]<<'\t'<<xprevious[atom->tag[2587]][1]<<'\t'<<xprevious[atom->tag[2587]][2]<<endl;
-		//cout<<"atom1 "<<atom1<<' '<<xatom1[0]<<' '<<xatom1[1]<<' '<<xatom1[2]<<endl;
 
-		//cout<<"atom2 "<<atom2<<' '<<xatom2[0]<<' '<<xatom2[1]<<' '<<xatom2[2]<<endl;
 		// for rotate by right-hand rule around omega:
 		// P = point = vector = point of rotation
 		// R = vector = axis of rotation
@@ -437,14 +449,14 @@ void FixRotate::initial_integrate(int vflag){
 		}
 		enext = energy_full();
 
-		cout<<"attempt # "<<(MAX_ATTEMPTS - attempts)<<endl;
+		//cout<<"attempt # "<<(MAX_ATTEMPTS - attempts)<<endl;
 		fprintf(logfile,"attempt # %d\n",(MAX_ATTEMPTS - attempts));
 		double delta = enext - elast;
-		cout<<"enext: "<<enext<<"\telast: "<<elast<<"\tdelta: "<<delta<<endl;
+	//	cout<<"enext: "<<enext<<"\telast: "<<elast<<"\tdelta: "<<delta<<endl;
 		if (logfile)
 			fprintf(logfile,"enext: %f elast: %f delta: %f\n",enext,elast,delta);
 
-		if(attempts == 0) error->all(FLERR,"SIMULATION QUIT BECAUSE ATTEMPTS REACHED MAX LIMIT");
+		//if(attempts == 0) error->all(FLERR,"SIMULATION QUIT BECAUSE ATTEMPTS REACHED MAX LIMIT");
 
 		if(delta <= 0){
 			cout<<"======>\t\t\t structure accepted due to LOW energy"<<endl;
@@ -454,7 +466,7 @@ void FixRotate::initial_integrate(int vflag){
 		} else{
 			double factor = exp(-delta/force->boltz/300);
 			double randno = random->uniform();
-			cout<<"randno \t"<<randno<<" factor \t"<<factor<<endl;
+			//cout<<"randno \t"<<randno<<" factor \t"<<factor<<endl;
 			if (logfile)
 				fprintf(logfile,"random no: %f exponential factor: %f\n",randno,factor);
 			if (randno <= factor){
@@ -463,6 +475,13 @@ void FixRotate::initial_integrate(int vflag){
 					fprintf(logfile,"structure accepted due to random\n");
 				break;
 			}
+		}
+
+		if(attempts == 0){
+			enext = elast;
+			cout<<"WARNING: Max attempts exceeded. No New Structure found."<<endl;
+			if (logfile)
+				fprintf(logfile,"WARNING: Max attempts exceeded. No New Structure found.\n");
 		}
 		//at the end of each rejected attempt, restore atom coordinates.
 		for(int i=0;i< nlocal;i++){
@@ -487,6 +506,7 @@ void FixRotate::initial_integrate(int vflag){
 		xprevious[i][1] = x[i][1];
 		xprevious[i][2] = x[i][2];
 	}
+	dssp->reinit();
 }
 
 
@@ -623,6 +643,7 @@ void FixRotate::final_integrate()
 	//			}
 	//		}
 	//	}
+
 }
 
 /* ---------------------------------------------------------------------- */
@@ -753,7 +774,7 @@ void FixRotate::set_arrays(int i)
 	if (mstyle == VARIABLE)
 		error->all(FLERR,"Cannot add atoms to fix move variable");
 	 */
-	domain->unmap(x[i],image[i],xoriginal[i]);
+	domain->unmap(xprevious[i],image[i],xoriginal[i]);
 	double delta = (update->ntimestep - time_origin) * update->dt;
 	/*
 	if (mstyle == LINEAR) {
